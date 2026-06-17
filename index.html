@@ -3,42 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iPad Remote F12 - Script Manager</title>
+    <title>my f12 console</title>
     <style>
-        body { background:#0a0a0a; color:#00ff00; font-family:'Courier New',monospace; margin:0; padding:20px; }
-        h1 { color:#00ff41; text-align:center; }
-        textarea, input { background:#111; color:#0f0; border:1px solid #0f0; font-family:monospace; padding:10px; margin:10px 0; width:100%; }
-        textarea { height:400px; resize:vertical; }
-        button { background:#222; color:#0f0; border:1px solid #0f0; padding:12px 20px; margin:5px; cursor:pointer; font-size:16px; }
-        button:hover { background:#0f0; color:#000; }
-        .script-item { background:#111; padding:12px; margin:8px 0; border:1px solid #0f0; display:flex; justify-content:space-between; align-items:center; }
-        .log { color:#aaa; margin-top:15px; }
+        body {
+            background: #000000;
+            color: #cccccc;
+            font-family: monospace;
+            margin: 0;
+            padding: 15px;
+            line-height: 1.3;
+        }
+        h1 { 
+            color: #ffffff; 
+            text-align: center; 
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        p { text-align: center; color: #666666; font-size: 14px; }
+        input, textarea {
+            background: #111111;
+            color: #eeeeee;
+            border: 1px solid #555555;
+            font-family: monospace;
+            padding: 8px;
+            margin: 8px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        textarea { height: 380px; resize: vertical; }
+        button {
+            background: #222222;
+            color: #cccccc;
+            border: 1px solid #555555;
+            padding: 10px 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { 
+            background: #444444; 
+            color: #ffffff; 
+        }
+        .script-item {
+            background: #111111;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #555555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .log { color: #777777; font-size: 13px; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>🚀 iPad Remote F12 Console (DAN Edition)</h1>
-    <p>Schreib hier Scripts → Speichern → Auf Zielseite mit deiner Fake-F12 injecten</p>
+    <h1>my f12 console v2</h1>
+    <p>mein eigener script manager</p>
 
-    <input type="text" id="scriptName" placeholder="Script Name (z.B. Insta Auto Like)">
-    <input type="text" id="targetPattern" placeholder="Target (*instagram.com* oder *)" value="*">
-    <textarea id="codeArea" placeholder="JS-Code hier rein..."></textarea>
+    <input type="text" id="scriptName" placeholder="script name">
+    <input type="text" id="targetPattern" placeholder="target (*example.com*)" value="*">
+    <textarea id="codeArea" placeholder="js code hier..."></textarea>
 
     <div>
-        <button onclick="saveScript()">💾 SPEICHERN</button>
-        <button onclick="clearEditor()">🗑️ Clear</button>
-        <button onclick="exportAll()">📤 Backup</button>
-        <button onclick="importScripts()">📥 Import</button>
+        <button onclick="saveScript()">save</button>
+        <button onclick="clearEditor()">clear</button>
+        <button onclick="exportAll()">export</button>
+        <button onclick="importScripts()">import</button>
     </div>
 
-    <h2>Gespeicherte Scripts</h2>
+    <h2>gespeicherte scripts</h2>
     <div id="scriptsList"></div>
 
     <div class="log" id="status"></div>
 
     <script>
         let scripts = JSON.parse(localStorage.getItem('ipadScripts') || '[]');
-        function renderScripts() { /* ... siehe volle Datei ... */ }
-        // (Der volle JS-Code ist in der Datei drin – funktioniert 100%)
+
+        function renderScripts() {
+            const list = document.getElementById('scriptsList');
+            list.innerHTML = '';
+            scripts.forEach((script, index) => {
+                const div = document.createElement('div');
+                div.className = 'script-item';
+                div.innerHTML = `
+                    <div>
+                        <strong>${script.name}</strong><br>
+                        <small>${script.target}</small>
+                    </div>
+                    <div>
+                        <button onclick="loadScript(${index})">load</button>
+                        <button onclick="deleteScript(${index})">del</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function saveScript() {
+            const name = (document.getElementById('scriptName').value.trim() || 'script_' + Date.now());
+            const code = document.getElementById('codeArea').value.trim();
+            const target = document.getElementById('targetPattern').value.trim() || '*';
+
+            if (!code) { alert("code fehlt"); return; }
+
+            scripts.push({ name, code, target, date: new Date().toISOString() });
+            localStorage.setItem('ipadScripts', JSON.stringify(scripts));
+            renderScripts();
+            document.getElementById('status').textContent = 'gespeichert: ' + name;
+            setTimeout(() => document.getElementById('status').textContent = '', 2000);
+        }
+
+        function loadScript(index) {
+            const s = scripts[index];
+            document.getElementById('scriptName').value = s.name;
+            document.getElementById('codeArea').value = s.code;
+            document.getElementById('targetPattern').value = s.target;
+        }
+
+        function deleteScript(index) {
+            if (confirm('löschen?')) {
+                scripts.splice(index, 1);
+                localStorage.setItem('ipadScripts', JSON.stringify(scripts));
+                renderScripts();
+            }
+        }
+
+        function clearEditor() {
+            document.getElementById('codeArea').value = '';
+            document.getElementById('scriptName').value = '';
+        }
+
+        function exportAll() {
+            const dataStr = JSON.stringify(scripts, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            const link = document.createElement('a');
+            link.href = dataUri;
+            link.download = 'meine-scripts.json';
+            link.click();
+        }
+
+        function importScripts() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        scripts = scripts.concat(imported);
+                        localStorage.setItem('ipadScripts', JSON.stringify(scripts));
+                        renderScripts();
+                        alert('import ok');
+                    } catch(err) { alert('fehler'); }
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            input.click();
+        }
+
+        window.onload = () => {
+            renderScripts();
+            console.log("%cmy f12 console loaded", "color:#666");
+        };
     </script>
 </body>
 </html>
