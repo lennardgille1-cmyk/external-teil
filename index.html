@@ -8,34 +8,66 @@
         body { background:#000; color:#ccc; font-family:monospace; margin:0; padding:15px; }
         h1 { color:#fff; text-align:center; font-size:18px; }
         input, textarea { background:#111; color:#eee; border:1px solid #555; padding:8px; margin:8px 0; width:100%; box-sizing:border-box; }
-        textarea { height:320px; }
+        textarea { height:220px; }
         button { background:#222; color:#ccc; border:1px solid #555; padding:10px 16px; margin:4px; cursor:pointer; }
         button:hover { background:#444; color:#fff; }
         .script-item { background:#111; padding:10px; margin:8px 0; border:1px solid #555; display:flex; justify-content:space-between; }
-        .log { color:#777; margin-top:10px; }
+        #console { 
+            background:#111; 
+            border:1px solid #555; 
+            height:250px; 
+            overflow-y:auto; 
+            padding:8px; 
+            margin-top:15px; 
+            font-size:13px; 
+            white-space:pre-wrap;
+        }
+        .log { color:#0f0; }
+        .error { color:#f66; }
+        .warn { color:#ff0; }
     </style>
 </head>
 <body>
-    <h1>my f12 console v3</h1>
-    <p>standalone script manager</p>
+    <h1>my f12 console v4</h1>
+    <p>standalone + live console</p>
 
     <input type="text" id="scriptName" placeholder="script name">
-    <input type="text" id="targetUrl" placeholder="ziel url (z.b. https://instagram.com)" value="">
+    <input type="text" id="targetUrl" placeholder="https://www.instagram.com" value="">
     <textarea id="codeArea" placeholder="js code hier..."></textarea>
 
     <div>
         <button onclick="saveScript()">save</button>
-        <button onclick="runOnTarget()">▶️ Auf Zielseite ausführen</button>
+        <button onclick="openAndInject()">▶️ Seite öffnen + Inject</button>
         <button onclick="clearEditor()">clear</button>
+        <button onclick="clearConsole()">clear console</button>
     </div>
 
     <h2>gespeicherte scripts</h2>
     <div id="scriptsList"></div>
 
-    <div class="log" id="status"></div>
+    <h2>live console</h2>
+    <div id="console"></div>
 
     <script>
         let scripts = JSON.parse(localStorage.getItem('ipadScripts') || '[]');
+
+        // Eigene Console
+        const consoleDiv = document.getElementById('console');
+        function log(text, type = 'log') {
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Original Console überschreiben
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        console.log = (...args) => { originalLog(...args); log(args.join(' '), 'log'); };
+        console.error = (...args) => { originalError(...args); log(args.join(' '), 'error'); };
+        console.warn = (...args) => { originalWarn(...args); log(args.join(' '), 'warn'); };
 
         function renderScripts() {
             const list = document.getElementById('scriptsList');
@@ -62,7 +94,7 @@
             scripts.push({name, code, target});
             localStorage.setItem('ipadScripts', JSON.stringify(scripts));
             renderScripts();
-            document.getElementById('status').textContent = 'gespeichert';
+            log('Script gespeichert: ' + name);
         }
 
         function loadScript(i) {
@@ -84,31 +116,38 @@
             document.getElementById('codeArea').value = '';
         }
 
-        // Direkt auf Zielseite ausführen (öffnet neue Seite + inject)
-        function runOnTarget() {
-            let code = document.getElementById('codeArea').value.trim();
+        function clearConsole() {
+            consoleDiv.innerHTML = '';
+        }
+
+        function openAndInject() {
             let url = document.getElementById('targetUrl').value.trim();
+            let code = document.getElementById('codeArea').value.trim();
 
             if (!code) return alert("kein code");
 
-            if (!url) url = "https://google.com"; // fallback
+            if (!url) url = "https://google.com";
 
-            // Erweiterter Inject-Code
+            log('Öffne Seite: ' + url);
+
             const injector = `
                 javascript:(function(){
-                    let s = document.createElement('script');
-                    s.textContent = ${JSON.stringify(code)};
-                    document.body.appendChild(s);
-                    console.log('%c[Injected from my f12]', 'color:lime');
+                    console.log = function(...a){window.parent && window.parent.postMessage({type:'log',text:a.join(' ')},'*'); originalLog(...a);};
+                    try {
+                        ${code}
+                    } catch(e) {
+                        console.error(e);
+                    }
                 })();
             `;
 
-            window.open(url + '#' + encodeURIComponent(injector), '_blank');
-            document.getElementById('status').textContent = 'Seite geöffnet – Bookmarklet im Hash';
+            window.open(url, '_blank');
+            log('Seite geöffnet – benutze dein Fake-F12 Bookmarklet danach');
         }
 
         window.onload = () => {
             renderScripts();
+            log('my f12 console v4 gestartet');
         };
     </script>
 </body>
