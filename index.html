@@ -5,70 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>my f12 console</title>
     <style>
-        body {
-            background: #000000;
-            color: #cccccc;
-            font-family: monospace;
-            margin: 0;
-            padding: 15px;
-            line-height: 1.3;
-        }
-        h1 { 
-            color: #ffffff; 
-            text-align: center; 
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        p { text-align: center; color: #666666; font-size: 14px; }
-        input, textarea {
-            background: #111111;
-            color: #eeeeee;
-            border: 1px solid #555555;
-            font-family: monospace;
-            padding: 8px;
-            margin: 8px 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        textarea { height: 380px; resize: vertical; }
-        button {
-            background: #222222;
-            color: #cccccc;
-            border: 1px solid #555555;
-            padding: 10px 16px;
-            margin: 4px 2px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        button:hover { 
-            background: #444444; 
-            color: #ffffff; 
-        }
-        .script-item {
-            background: #111111;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #555555;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .log { color: #777777; font-size: 13px; margin-top: 10px; }
+        body { background:#000; color:#ccc; font-family:monospace; margin:0; padding:15px; }
+        h1 { color:#fff; text-align:center; font-size:18px; }
+        input, textarea { background:#111; color:#eee; border:1px solid #555; padding:8px; margin:8px 0; width:100%; box-sizing:border-box; }
+        textarea { height:320px; }
+        button { background:#222; color:#ccc; border:1px solid #555; padding:10px 16px; margin:4px; cursor:pointer; }
+        button:hover { background:#444; color:#fff; }
+        .script-item { background:#111; padding:10px; margin:8px 0; border:1px solid #555; display:flex; justify-content:space-between; }
+        .log { color:#777; margin-top:10px; }
     </style>
 </head>
 <body>
-    <h1>my f12 console v2</h1>
-    <p>mein eigener script manager</p>
+    <h1>my f12 console v3</h1>
+    <p>standalone script manager</p>
 
     <input type="text" id="scriptName" placeholder="script name">
-    <input type="text" id="targetPattern" placeholder="target (*example.com*)" value="*">
+    <input type="text" id="targetUrl" placeholder="ziel url (z.b. https://instagram.com)" value="">
     <textarea id="codeArea" placeholder="js code hier..."></textarea>
 
     <div>
         <button onclick="saveScript()">save</button>
+        <button onclick="runOnTarget()">▶️ Auf Zielseite ausführen</button>
         <button onclick="clearEditor()">clear</button>
-        <button onclick="exportAll()">export</button>
-        <button onclick="importScripts()">import</button>
     </div>
 
     <h2>gespeicherte scripts</h2>
@@ -82,17 +40,14 @@
         function renderScripts() {
             const list = document.getElementById('scriptsList');
             list.innerHTML = '';
-            scripts.forEach((script, index) => {
+            scripts.forEach((s, i) => {
                 const div = document.createElement('div');
                 div.className = 'script-item';
                 div.innerHTML = `
+                    <div><strong>${s.name}</strong><br><small>${s.target || 'any'}</small></div>
                     <div>
-                        <strong>${script.name}</strong><br>
-                        <small>${script.target}</small>
-                    </div>
-                    <div>
-                        <button onclick="loadScript(${index})">load</button>
-                        <button onclick="deleteScript(${index})">del</button>
+                        <button onclick="loadScript(${i})">load</button>
+                        <button onclick="deleteScript(${i})">del</button>
                     </div>
                 `;
                 list.appendChild(div);
@@ -100,29 +55,26 @@
         }
 
         function saveScript() {
-            const name = (document.getElementById('scriptName').value.trim() || 'script_' + Date.now());
+            const name = document.getElementById('scriptName').value.trim() || 'script_' + Date.now();
             const code = document.getElementById('codeArea').value.trim();
-            const target = document.getElementById('targetPattern').value.trim() || '*';
-
-            if (!code) { alert("code fehlt"); return; }
-
-            scripts.push({ name, code, target, date: new Date().toISOString() });
+            const target = document.getElementById('targetUrl').value.trim();
+            if (!code) return alert("code fehlt");
+            scripts.push({name, code, target});
             localStorage.setItem('ipadScripts', JSON.stringify(scripts));
             renderScripts();
-            document.getElementById('status').textContent = 'gespeichert: ' + name;
-            setTimeout(() => document.getElementById('status').textContent = '', 2000);
+            document.getElementById('status').textContent = 'gespeichert';
         }
 
-        function loadScript(index) {
-            const s = scripts[index];
+        function loadScript(i) {
+            const s = scripts[i];
             document.getElementById('scriptName').value = s.name;
             document.getElementById('codeArea').value = s.code;
-            document.getElementById('targetPattern').value = s.target;
+            document.getElementById('targetUrl').value = s.target || '';
         }
 
-        function deleteScript(index) {
-            if (confirm('löschen?')) {
-                scripts.splice(index, 1);
+        function deleteScript(i) {
+            if(confirm('löschen?')) {
+                scripts.splice(i,1);
                 localStorage.setItem('ipadScripts', JSON.stringify(scripts));
                 renderScripts();
             }
@@ -130,41 +82,33 @@
 
         function clearEditor() {
             document.getElementById('codeArea').value = '';
-            document.getElementById('scriptName').value = '';
         }
 
-        function exportAll() {
-            const dataStr = JSON.stringify(scripts, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-            const link = document.createElement('a');
-            link.href = dataUri;
-            link.download = 'meine-scripts.json';
-            link.click();
-        }
+        // Direkt auf Zielseite ausführen (öffnet neue Seite + inject)
+        function runOnTarget() {
+            let code = document.getElementById('codeArea').value.trim();
+            let url = document.getElementById('targetUrl').value.trim();
 
-        function importScripts() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = e => {
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    try {
-                        const imported = JSON.parse(ev.target.result);
-                        scripts = scripts.concat(imported);
-                        localStorage.setItem('ipadScripts', JSON.stringify(scripts));
-                        renderScripts();
-                        alert('import ok');
-                    } catch(err) { alert('fehler'); }
-                };
-                reader.readAsText(e.target.files[0]);
-            };
-            input.click();
+            if (!code) return alert("kein code");
+
+            if (!url) url = "https://google.com"; // fallback
+
+            // Erweiterter Inject-Code
+            const injector = `
+                javascript:(function(){
+                    let s = document.createElement('script');
+                    s.textContent = ${JSON.stringify(code)};
+                    document.body.appendChild(s);
+                    console.log('%c[Injected from my f12]', 'color:lime');
+                })();
+            `;
+
+            window.open(url + '#' + encodeURIComponent(injector), '_blank');
+            document.getElementById('status').textContent = 'Seite geöffnet – Bookmarklet im Hash';
         }
 
         window.onload = () => {
             renderScripts();
-            console.log("%cmy f12 console loaded", "color:#666");
         };
     </script>
 </body>
